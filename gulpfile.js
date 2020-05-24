@@ -9,24 +9,23 @@ let path = {
     php: project_folder + "/",
     css: project_folder + "/css/",
     js: project_folder + "/js/",
-    js2: project_folder + "/js/",
     img: project_folder + "/img/",
     fonts: project_folder + "/fonts/",
   },
   src: {
     html: [source_folder + "/*.html", "!" + source_folder + "/_*.html"],
+    php: source_folder + "/*.php",
     css: source_folder + "/scss/style.scss",
     //js: source_folder + "/js/script.js",
     js: source_folder + "/js/*.js",
-    js2: source_folder + "/js/*.js",
     img: source_folder + "/img/**/*.{jpg,png,svg,gif,ico,webp}",
     fonts: source_folder + "/fonts/*.ttf",
   },
   watch: {
     html: source_folder + "/**/*.html",
+    php: source_folder + "/**/*.php",
     css: source_folder + "/scss/**/*.scss",
     js: source_folder + "/js/**/*.js",
-    js2: source_folder + "/js/**/*.js",
     img: source_folder + "/img/**/*.{jpg,png,svg,gif,ico,webp}",
   },
   clean: "./" + project_folder + "/",
@@ -50,7 +49,9 @@ let { src, dest } = require("gulp"),
   svgSprite = require("gulp-svg-sprite"),
   ttf2woff = require("gulp-ttf2woff"),
   ttf2woff2 = require("gulp-ttf2woff2"),
-  fonter = require("gulp-fonter");
+  fonter = require("gulp-fonter"),
+  concat = require("gulp-concat"),
+  connect = require("gulp-connect-php");
 
 function browserSync(parms) {
   browsersync.init({
@@ -70,11 +71,9 @@ function html() {
     .pipe(browsersync.stream());
 }
 
-function js2() {
-  return src(path.src.js2)
-    .pipe(fileinclude())
-    .pipe(webphtml())
-    .pipe(dest(path.build.js2))
+function php() {
+  return src(path.src.php)
+    .pipe(dest(path.build.php))
     .pipe(browsersync.stream());
 }
 
@@ -101,6 +100,17 @@ function css() {
       })
     )
     .pipe(dest(path.build.css))
+    .pipe(browsersync.stream());
+}
+
+function libJs() {
+  return src([
+    "node_modules/jquery/dist/jquery.js",
+    "node_modules/slick-carousel/slick/slick.js",
+  ])
+    .pipe(concat("libs.min.js"))
+    .pipe(uglify())
+    .pipe(dest(path.build.js))
     .pipe(browsersync.stream());
 }
 
@@ -206,9 +216,9 @@ function cb() {}
 
 function watchFiles(params) {
   gulp.watch([path.watch.html], html);
+  gulp.watch([path.watch.php], php);
   gulp.watch([path.watch.css], css);
   gulp.watch([path.watch.js], js);
-  gulp.watch([path.watch.js], js2);
   gulp.watch([path.watch.img], images);
 }
 
@@ -216,9 +226,14 @@ function clean(params) {
   return del(path.clean);
 }
 
-let build = gulp.series(clean, gulp.parallel(js, css, html, images, fonts));
+let build = gulp.series(
+  clean,
+  gulp.parallel(js, libJs, css, html, php, images, fonts),
+  fontsStyle
+);
 let watch = gulp.parallel(build, watchFiles, browserSync);
 
+exports.fontsStyle = fontsStyle;
 exports.fonts = fonts;
 exports.images = images;
 exports.js = js;
